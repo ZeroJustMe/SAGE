@@ -1,9 +1,8 @@
-import os
-import time, json
+import time
+import json
+import yaml
+
 from sage_core.api.local_environment import LocalEnvironment
-from sage_libs.rag.evaluate import F1Evaluate, BertRecallEvaluate, RougeLEvaluate, BRSEvaluate, RecallEvaluate, \
-    AccuracyEvaluate, TokenCountEvaluate, LatencyEvaluate, ContextRecallEvaluate, CompressionRateEvaluate
-from sage_utils.clients.generator_model import apply_generator_model
 from sage_utils.config_loader import load_config
 from sage_core.function.source_function import SourceFunction
 from sage_core.function.map_function import MapFunction
@@ -16,6 +15,8 @@ from sage_libs.rag.evaluate import (
     BRSEvaluate, AccuracyEvaluate, TokenCountEvaluate,
     LatencyEvaluate, ContextRecallEvaluate, CompressionRateEvaluate
 )
+
+
 class CustomFileSource(SourceFunction):
     """
     支持两种数据源：
@@ -35,41 +36,41 @@ class CustomFileSource(SourceFunction):
             self.hf_split  = config.get("hf_split", "train")
         else:
             raise ValueError(f"Unsupported source.type: {self.source_type}")
-        self._iter = None
-    def _build_iter(self):
+
+    def run(self):
+        # 在开始时打印一次，确认走的分支和路径
+        print(f"[CustomFileSource] mode={self.source_type}, path={getattr(self, 'path', self.hf_name)}")
         if self.source_type == "local":
             with open(self.path, "r", encoding="utf-8") as f:
                 for line in f:
                     item = json.loads(line)
+                    golds = item.get("golden_answers") or []
                     yield {
                         "query":      item.get("question", ""),
-                        "references": item.get("golden_answers") or []
+                        "references": golds
                     }
-        else:  # hf
+
+        elif self.source_type == "hf":
             from datasets import load_dataset
-            ds = load_dataset(self.hf_name, self.hf_config,
-                              split=self.hf_split, streaming=True)
+            ds = load_dataset(self.hf_name, self.hf_config, split=self.hf_split)
             for ex in ds:
+                golds = ex.get("golden_answers") or ex.get("answers") or []
                 yield {
-                    "query": ex.get("question", ""),
-                    "references": ex.get("golden_answers") or []
+                    "query":      ex.get("question", ""),
+                    "references": golds
                 }
-    def execute(self):
-        if self._iter is None:
-            self.logger.debug(f"Initializing data source: {self.source_type}")
-            print(f"[CustomFileSource] mode={self.source_type}, path={getattr(self, 'path', self.hf_name)}")
-            self._iter = self._build_iter()
-        try:
-            self.logger.debug("Fetching next data item from source")
-            data = next(self._iter)
-            self.logger.debug(f"Yielding data: {data}")
-            return data
-        except StopIteration:
-            return None
+
+        else:
+            # 不会走到这里
+            raise RuntimeError(f"Unknown source.type {self.source_type}")
+
+
 class TimeDenseRetriever(MapFunction):
     def __init__(self, config=None, **kwargs):
         super().__init__(**kwargs)
         self.retriever = DenseRetriever(config)
+        self.retriever.ctx = self.ctx
+
     def execute(self, data: dict):
         if getattr(self.retriever, "ctx", None) is None and self.ctx is not None:
             self.retriever.ctx = self.ctx
@@ -106,24 +107,18 @@ class TimeQAPromptor(MapFunction):
 class TimeGenerator(MapFunction):
     def __init__(self, config=None, **kwargs):
         super().__init__(**kwargs)
-        self.config = config
-        self.model = apply_generator_model(
-            method=self.config["method"],
-            model_name=self.config["model_name"],
-            base_url=self.config["base_url"],
-            api_key=self.config["api_key"] or os.getenv("ALIBABA_API_KEY"),
-            seed=42  # Hardcoded seed for reproducibility
-        )
-        self.num = 1
+        self.generator = OpenAIGenerator(config, self.ctx)
+        self.generator.ctx = self.ctx
+
     def execute(self, data: dict):
         start = time.time()
         response = self.model.generate(data["prompt"])
         data["generation_time"] = time.time() - start
-        data["generated"] = response
-        data["query"] = data["query"]
+        data["generated"]       = gen
+        data["query"]           = query
         return data
 def pipeline_run(config):
-    env = LocalEnvironment()
+    env = LocalEnvironment("111")
     # env.set_memory(config=None)
     (
         env

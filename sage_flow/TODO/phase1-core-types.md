@@ -43,3 +43,33 @@ class MultiModalMessage:
 - [ ] 支持稀疏向量类型和混合精度
 - [ ] C++ 后端通过 pybind11 优化向量运算，参考 py_candy_pybind11.cpp 的设计模式
 - [ ] 与 numpy.ndarray 的零拷贝转换机制
+
+## 1.3 Lambda Operators架构重构 
+### 目标：代码架构规范化 - ✅ COMPLETED (2025-07-24)
+
+- [x] **一文件一类规范**: 将 `lambda_operators.h` 拆分为独立文件
+  - [x] `lambda_map_operator.h/.cpp` - 包含 `LambdaMapOperator` 类
+  - [x] `lambda_filter_operator.h/.cpp` - 包含 `LambdaFilterOperator` 类  
+  - [x] `lambda_source_operator.h/.cpp` - 包含 `LambdaSourceOperator` 类
+
+- [x] **依赖关系验证**: 确保正确的继承层次
+  - [x] `LambdaMapOperator : public Operator` ✅
+  - [x] `LambdaFilterOperator : public Operator` ✅
+  - [x] `LambdaSourceOperator : public Operator` ✅
+  - [x] 无错误依赖如 `Function : Operator`
+
+- [x] **Google C++风格合规**:
+  - [x] clang-tidy检查通过
+  - [x] 现代C++20特性使用
+  - [x] 正确的拷贝/移动语义
+  - [x] 适当的 `explicit` 构造函数
+
+- [x] **pybind11绑定实现**:
+  - [x] `lambda_map_operator_bindings.cpp`
+  - [x] `lambda_filter_operator_bindings.cpp`
+  - [x] `lambda_source_operator_bindings.cpp`
+  - [x] 工厂函数Python暴露
+
+- [x] **构建系统更新**: CMakeLists.txt包含所有新源文件
+- [x] **代码重复消除**: 移除冗余实现，每类职责单一
+- [x] **SAGE框架兼容**: 与Operator基类和Response系统集成

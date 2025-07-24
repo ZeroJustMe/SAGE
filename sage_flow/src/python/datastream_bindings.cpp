@@ -14,6 +14,18 @@
 #include <functional>
 #include <algorithm>
 
+// Include the base operator for bindings
+#include "operator/base_operator.h"
+#include "operator/operator_types.h"
+
+// Forward declarations for binding functions
+void BindLambdaMapOperator(pybind11::module& m);
+void BindLambdaFilterOperator(pybind11::module& m);
+void BindLambdaSourceOperator(pybind11::module& m);
+void BindTerminalSinkOperator(pybind11::module& m);
+void BindFileSinkOperator(pybind11::module& m);
+void BindVectorStoreSinkOperator(pybind11::module& m);
+
 // For now, we'll bind our mock classes
 // Later this will include actual SAGE framework components
 
@@ -179,4 +191,35 @@ PYBIND11_MODULE(sage_flow_datastream, m) {
     m.def("create_message", [](const std::string& content) {
         return std::make_shared<sage_flow::PyMultiModalMessage>(content);
     }, "Create a new MultiModalMessage");
+    
+    // Bind base Operator class (required for inheritance)
+    py::enum_<sage_flow::OperatorType>(m, "OperatorType")
+        .value("kSource", sage_flow::OperatorType::kSource)
+        .value("kMap", sage_flow::OperatorType::kMap)
+        .value("kFilter", sage_flow::OperatorType::kFilter)
+        .value("kSink", sage_flow::OperatorType::kSink);
+    
+    py::class_<sage_flow::Operator>(m, "Operator")
+        .def("get_type", &sage_flow::Operator::getType,
+             "Get the operator type")
+        .def("get_name", &sage_flow::Operator::getName,
+             "Get the operator name")
+        .def("set_name", &sage_flow::Operator::setName,
+             "Set the operator name")
+        .def("get_processed_count", &sage_flow::Operator::getProcessedCount,
+             "Get number of processed records")
+        .def("get_output_count", &sage_flow::Operator::getOutputCount,
+             "Get number of output records")
+        .def("reset_counters", &sage_flow::Operator::resetCounters,
+             "Reset performance counters");
+    
+    // Bind Lambda operators
+    BindLambdaMapOperator(m);
+    BindLambdaFilterOperator(m);
+    BindLambdaSourceOperator(m);
+    
+    // Bind Sink operators
+    BindTerminalSinkOperator(m);
+    BindFileSinkOperator(m);
+    BindVectorStoreSinkOperator(m);
 }

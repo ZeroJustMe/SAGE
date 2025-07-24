@@ -1,4 +1,11 @@
 ---
 mode: agent
 ---
-Define the task to achieve, including specific requirements, constraints, and success criteria.
+- 你必须保证每个代码文件只能包含一个class。
+- 你必须保证class之间的依赖关系必须正确，不得出现如Function是Operator的子类等错误情况。
+- 你必须保证代码遵循clang-tidy检查给出的要求，遵循Google C++ Style Guide，使用现代C++特性。
+- 你必须保证代码遵循SAGE框架的设计约束。
+- 你必须保证你的cpp代码没有相互重复或冗余的部分。
+- 你必须保证在编写代码时，更新sage_flow/TODO目录下对应阶段的文档，标记完成情况，但是严禁在README.md中更新，不得新建任何md文件，只能在现有各个phase相关的md里更新。
+- 你必须保证编写的cpp代码有对应的pybind11绑定代码。
+- 你在执行各种命令时要注意使用正确的路径和文件名，确保与项目结构一致。

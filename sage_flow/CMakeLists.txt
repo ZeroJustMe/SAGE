@@ -59,8 +59,12 @@ set(SAGE_FLOW_SOURCES
   src/message/retrieval_context.cpp
   src/message/multimodal_message_core.cpp
   src/operator/operator.cpp
-  src/operator/lambda_operators.cpp
-  src/operator/lambda_sinks.cpp
+  src/operator/lambda_map_operator.cpp
+  src/operator/lambda_filter_operator.cpp
+  src/operator/lambda_source_operator.cpp
+  src/operator/terminal_sink_operator.cpp
+  src/operator/file_sink_operator.cpp
+  src/operator/vector_store_sink_operator.cpp
   src/function/text_processing.cpp
   src/index/index_operators.cpp
   src/index/brute_force_index.cpp
@@ -96,7 +100,15 @@ target_link_libraries(sage_flow_py PRIVATE sage_flow_core)
 # DataStream Python bindings
 pybind11_add_module(sage_flow_datastream
   src/python/datastream_bindings.cpp
+  src/python/lambda_map_operator_bindings.cpp
+  src/python/lambda_filter_operator_bindings.cpp
+  src/python/lambda_source_operator_bindings.cpp
+  src/python/terminal_sink_operator_bindings.cpp
+  src/python/file_sink_operator_bindings.cpp
+  src/python/vector_store_sink_operator_bindings.cpp
 )
+
+target_link_libraries(sage_flow_datastream PRIVATE sage_flow_core)
 
 target_include_directories(sage_flow_datastream PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -113,25 +125,3 @@ install(DIRECTORY include/
   DESTINATION include
   FILES_MATCHING PATTERN "*.h"
 )
-
-# 添加DataStream演示程序
-add_executable(datastream_demo
-  ../sage_examples/datastream_demo.cpp
-)
-
-target_include_directories(datastream_demo PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_compile_features(datastream_demo PRIVATE cxx_std_17)
-
-# 添加高级DataStream演示程序
-add_executable(datastream_advanced_demo
-  ../sage_examples/datastream_advanced_demo.cpp
-)
-
-target_include_directories(datastream_advanced_demo PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-target_compile_features(datastream_advanced_demo PRIVATE cxx_std_17)

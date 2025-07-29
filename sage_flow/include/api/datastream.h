@@ -6,24 +6,19 @@
 #include <string>
 #include <unordered_map>
 #include <any>
+#include <stdexcept>
+#include <optional>
+
+// Required header includes instead of forward declarations
 #include "engine/stream_engine.h"
 #include "engine/execution_graph.h"
+#include "message/multimodal_message_core.h"
+#include "function/function.h"
+#include "function/map_function.h"
+#include "function/filter_function.h"
+#include "function/sink_function.h"
 
 namespace sage_flow {
-
-// Forward declarations
-class MultiModalMessage;
-class BaseFunction;
-class SourceFunction;
-
-// Type alias for operator identification
-using OperatorId = ExecutionGraph::OperatorId;
-
-// Function type definitions for lambda operations
-using SinkFunction = std::function<void(const MultiModalMessage&)>;
-using MapFunction = std::function<std::unique_ptr<MultiModalMessage>(const MultiModalMessage&)>;
-using FilterFunction = std::function<bool(const MultiModalMessage&)>;
-using GeneratorFunction = std::function<std::unique_ptr<MultiModalMessage>()>;
 
 /**
  * @brief DataStream API for building stream processing pipelines
@@ -39,7 +34,7 @@ class DataStream {
   // Constructor for internal use
   DataStream(std::shared_ptr<StreamEngine> engine, 
              std::shared_ptr<ExecutionGraph> graph,
-             OperatorId last_operator_id = static_cast<OperatorId>(-1));
+             ExecutionGraph::OperatorId last_operator_id = static_cast<ExecutionGraph::OperatorId>(-1));
   
   ~DataStream() = default;
 
@@ -56,6 +51,17 @@ class DataStream {
   // ===============================
   
   /**
+   * @brief Create a source from function - starting point for data pipeline
+   * 
+   * Equivalent to sage_core's .from_source(SourceClass, config) pattern
+   * Supports both class-based sources and lambda functions
+   */
+  template<typename SourceType>
+  auto from_source(const std::unordered_map<std::string, std::any>& config = {}) -> DataStream;
+  
+  auto from_source(const std::function<std::unique_ptr<MultiModalMessage>()>& source_func) -> DataStream&;
+  
+  /**
    * @brief Map transformation - one-to-one data processing
    * 
    * Equivalent to sage_core's .map(FunctionClass, config) pattern
@@ -64,7 +70,7 @@ class DataStream {
   template<typename FunctionType>
   auto map(const std::unordered_map<std::string, std::any>& config = {}) -> DataStream;
   
-  auto map(const std::function<std::unique_ptr<MultiModalMessage>(std::unique_ptr<MultiModalMessage>)>& func) -> DataStream;
+  auto map(const std::function<std::unique_ptr<MultiModalMessage>(std::unique_ptr<MultiModalMessage>)>& func) -> DataStream&;
 
   /**
    * @brief Filter transformation - conditional data filtering
@@ -74,7 +80,7 @@ class DataStream {
   template<typename FilterType>
   auto filter(const std::unordered_map<std::string, std::any>& config = {}) -> DataStream;
   
-  auto filter(const std::function<bool(const MultiModalMessage&)>& predicate) -> DataStream;
+  auto filter(const std::function<bool(const MultiModalMessage&)>& predicate) -> DataStream&;
 
   /**
    * @brief FlatMap transformation - one-to-many data processing
@@ -175,180 +181,43 @@ class DataStream {
 
   auto getOperatorCount() const -> size_t;
   auto isExecuting() const -> bool;
-  auto getLastOperatorId() const -> int;
+  auto getLastOperatorId() const -> ExecutionGraph::OperatorId;
 
   // Internal access for environment integration
-  auto setLastOperatorId(int id) -> void;
+  auto setLastOperatorId(ExecutionGraph::OperatorId id) -> void;
   auto getGraph() const -> std::shared_ptr<ExecutionGraph>;
   auto getEngine() const -> std::shared_ptr<StreamEngine>;
 
  private:
   std::shared_ptr<StreamEngine> engine_;
   std::shared_ptr<ExecutionGraph> graph_;
-  OperatorId last_operator_id_ = static_cast<OperatorId>(-1);
-  size_t graph_id_ = 0;
+  ExecutionGraph::OperatorId last_operator_id_ = static_cast<ExecutionGraph::OperatorId>(-1);
+  std::optional<size_t> graph_id_;
   bool is_finalized_ = false;
 
   // Internal helper methods
   template<typename OperatorType>
-  auto addOperator(const std::unordered_map<std::string, std::any>& config) -> int;
+  auto addOperator(const std::unordered_map<std::string, std::any>& config) -> ExecutionGraph::OperatorId;
   
-  auto connectToLastOperator(int new_operator_id) -> void;
+  auto connectToLastOperator(ExecutionGraph::OperatorId new_operator_id) -> void;
   auto finalizeGraph() -> void;
   auto validateConfig(const std::unordered_map<std::string, std::any>& config) -> bool;
-};
-
-/**
- * @brief Environment for managing DataStream pipelines
- * 
- * Provides the entry point for creating and managing stream processing
- * pipelines, fully compatible with sage_core.environment.BaseEnvironment patterns.
- */
-class SageFlowEnvironment {
- public:
-  explicit SageFlowEnvironment(std::string name, 
-                               StreamEngine::ExecutionMode mode = StreamEngine::ExecutionMode::MULTI_THREADED);
-  ~SageFlowEnvironment();
-
-  // Prevent copying (matches sage_core pattern)
-  SageFlowEnvironment(const SageFlowEnvironment&) = delete;
-  auto operator=(const SageFlowEnvironment&) -> SageFlowEnvironment& = delete;
-
-  // Allow moving
-  SageFlowEnvironment(SageFlowEnvironment&&) = default;
-  auto operator=(SageFlowEnvironment&&) -> SageFlowEnvironment& = default;
-
-  // ===============================
-  // DataStream Creation (sage_core compatible)
-  // ===============================
-
-  /**
-   * @brief Create DataStream from source
-   * 
-   * Equivalent to sage_core's env.from_source(SourceClass, config) pattern
-   * Supports FileDataSource, KafkaDataSource, DirectoryDataSource, etc.
-   */
-  template<typename SourceType>
-  auto fromSource(const std::unordered_map<std::string, std::any>& config) -> DataStream;
-  
-  // Lambda-based source creation for simple cases
-  auto fromGenerator(const std::function<std::unique_ptr<MultiModalMessage>()>& generator,
-                     size_t max_messages = 0) -> DataStream;
-
-  // ===============================
-  // Environment Configuration (sage_core compatible)
-  // ===============================
-
-  /**
-   * @brief Set memory configuration
-   * 
-   * Equivalent to sage_core's env.set_memory(config=config.get("memory"))
-   * Integrates with sage_memory for vector storage
-   */
-  auto setMemory(const std::unordered_map<std::string, std::string>& config) -> void;
-
-  /**
-   * @brief Set execution thread count
-   * 
-   * Controls parallelism in multi-threaded execution
-   */
-  auto setThreadCount(int count) -> void;
-
-  /**
-   * @brief Set execution mode
-   * 
-   * SINGLE_THREADED, MULTI_THREADED, or DISTRIBUTED
-   */
-  auto setExecutionMode(StreamEngine::ExecutionMode mode) -> void;
-
-  /**
-   * @brief Set environment property
-   * 
-   * Generic property setting for configuration
-   */
-  auto setProperty(const std::string& key, const std::string& value) -> void;
-  auto getProperty(const std::string& key) const -> std::string;
-
-  // ===============================
-  // Environment Control (sage_core compatible)
-  // ===============================
-
-  /**
-   * @brief Submit pipeline for execution
-   * 
-   * Equivalent to sage_core's env.submit()
-   * Prepares all streams for execution
-   */
-  auto submit() -> void;
-
-  /**
-   * @brief Run in streaming mode
-   * 
-   * Equivalent to sage_core's env.run_streaming()
-   * Executes all submitted pipelines in streaming mode
-   */
-  auto runStreaming() -> void;
-
-  /**
-   * @brief Run in batch mode
-   * 
-   * Executes all submitted pipelines in batch mode
-   */
-  auto runBatch() -> void;
-
-  /**
-   * @brief Stop environment execution
-   * 
-   * Graceful shutdown of all running pipelines
-   */
-  auto stop() -> void;
-
-  /**
-   * @brief Close environment and cleanup
-   * 
-   * Equivalent to sage_core's env.close()
-   * Releases all resources and cleans up
-   */
-  auto close() -> void;
-
-  // ===============================
-  // Environment Information
-  // ===============================
-
-  auto getName() const -> const std::string&;
-  auto isRunning() const -> bool;
-  auto getActiveStreamCount() const -> size_t;
-  auto getSubmittedStreamCount() const -> size_t;
-  auto getExecutionMode() const -> StreamEngine::ExecutionMode;
-  auto getThreadCount() const -> int;
-
-  // Internal access for framework integration
-  auto getEngine() const -> std::shared_ptr<StreamEngine>;
-  auto addActiveStream(DataStream&& stream) -> void;
-
- private:
-  std::string name_;
-  std::shared_ptr<StreamEngine> engine_;
-  std::vector<DataStream> active_streams_;
-  std::vector<DataStream> submitted_streams_;
-  std::unordered_map<std::string, std::string> memory_config_;
-  std::unordered_map<std::string, std::string> properties_;
-  bool is_running_ = false;
-  bool is_submitted_ = false;
-
-  // Internal methods
-  auto validateStreams() -> bool;
-  auto setupMemoryIntegration() -> void;
-  auto cleanupResources() -> void;
 };
 
 // ===============================
 // Template Implementation
 // ===============================
 
+template<typename SourceType>
+auto DataStream::from_source(const std::unordered_map<std::string, std::any>& config) -> DataStream {
+    auto op_id = addOperator<SourceType>(config);
+    last_operator_id_ = op_id;
+    return std::move(*this);
+}
+
 template<typename FunctionType>
 auto DataStream::map(const std::unordered_map<std::string, std::any>& config) -> DataStream {
-    int op_id = addOperator<FunctionType>(config);
+    auto op_id = addOperator<FunctionType>(config);
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
     return std::move(*this);
@@ -356,7 +225,7 @@ auto DataStream::map(const std::unordered_map<std::string, std::any>& config) ->
 
 template<typename FilterType>
 auto DataStream::filter(const std::unordered_map<std::string, std::any>& config) -> DataStream {
-    int op_id = addOperator<FilterType>(config);
+    auto op_id = addOperator<FilterType>(config);
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
     return std::move(*this);
@@ -364,7 +233,7 @@ auto DataStream::filter(const std::unordered_map<std::string, std::any>& config)
 
 template<typename FlatMapType>
 auto DataStream::flatMap(const std::unordered_map<std::string, std::any>& config) -> DataStream {
-    int op_id = addOperator<FlatMapType>(config);
+    auto op_id = addOperator<FlatMapType>(config);
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
     return std::move(*this);
@@ -374,7 +243,7 @@ template<typename KeyFunction>
 auto DataStream::keyBy(const std::string& strategy, 
                        const std::unordered_map<std::string, std::any>& config) -> DataStream {
     // KeyBy implementation with strategy support
-    int op_id = addOperator<KeyFunction>(config);
+    auto op_id = addOperator<KeyFunction>(config);
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
     return std::move(*this);
@@ -384,7 +253,7 @@ template<typename WindowType>
 auto DataStream::window(const std::string& size, const std::string& slide,
                         const std::unordered_map<std::string, std::any>& config) -> DataStream {
     // Window implementation with time/count support
-    int op_id = addOperator<WindowType>(config);
+    auto op_id = addOperator<WindowType>(config);
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
     return std::move(*this);
@@ -394,7 +263,7 @@ template<typename AggregateType>
 auto DataStream::aggregate(const std::unordered_map<std::string, std::string>& operations,
                            const std::unordered_map<std::string, std::any>& config) -> DataStream {
     // Aggregate implementation with multiple operations
-    int op_id = addOperator<AggregateType>(config);
+    auto op_id = addOperator<AggregateType>(config);
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
     return std::move(*this);
@@ -402,27 +271,13 @@ auto DataStream::aggregate(const std::unordered_map<std::string, std::string>& o
 
 template<typename SinkType>
 auto DataStream::sink(const std::unordered_map<std::string, std::any>& config) -> void {
-    int sink_id = addOperator<SinkType>(config);
+    auto sink_id = addOperator<SinkType>(config);
     connectToLastOperator(sink_id);
     finalizeGraph();
 }
 
-template<typename SourceType>
-auto SageFlowEnvironment::fromSource(const std::unordered_map<std::string, std::any>& config) -> DataStream {
-    auto graph = engine_->createGraph();
-    
-    // Create source operator using factory pattern
-    auto source = std::make_unique<SourceType>(config);
-    int source_id = graph->addOperator(std::move(source));
-    
-    // Create DataStream with the source as starting point
-    DataStream result(engine_, graph, source_id);
-    
-    return result;
-}
-
 template<typename OperatorType>
-auto DataStream::addOperator(const std::unordered_map<std::string, std::any>& config) -> int {
+auto DataStream::addOperator(const std::unordered_map<std::string, std::any>& config) -> ExecutionGraph::OperatorId {
     // Validate configuration
     if (!validateConfig(config)) {
         throw std::runtime_error("Invalid operator configuration");

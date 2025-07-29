@@ -32,7 +32,7 @@ struct FileSinkConfig {
  * It supports text, JSON, and CSV output formats with configurable
  * batch processing and append modes.
  */
-class FileSinkOperator : public Operator {
+class FileSinkOperator final : public Operator {
  public:
   explicit FileSinkOperator(std::string file_path, FileSinkConfig config);
   

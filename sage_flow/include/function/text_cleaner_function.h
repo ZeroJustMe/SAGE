@@ -3,8 +3,7 @@
 #include <regex>
 #include <string>
 #include <vector>
-
-#include "operator/operator.h"
+#include "function/function.h"
 
 namespace sage_flow {
 
@@ -29,10 +28,9 @@ struct TextCleanConfig {
  * 
  * This function implements comprehensive text cleaning and preprocessing
  * capabilities, including regex-based pattern removal, whitespace normalization,
- * and quality assessment. It follows Google C++ Style Guide conventions
- * and integrates with the SAGE flow operator system.
+ * and quality assessment. Based on candyFlow design principles.
  */
-class TextCleanerFunction final : public MapOperator {
+class TextCleanerFunction final : public Function {
  public:
   explicit TextCleanerFunction(TextCleanConfig config);
   explicit TextCleanerFunction(std::string name, TextCleanConfig config);
@@ -45,9 +43,8 @@ class TextCleanerFunction final : public MapOperator {
   TextCleanerFunction(TextCleanerFunction&& other) noexcept;
   auto operator=(TextCleanerFunction&& other) noexcept -> TextCleanerFunction&;
   
-  // MapOperator interface implementation
-  auto map(std::unique_ptr<MultiModalMessage> input) 
-      -> std::unique_ptr<MultiModalMessage> override;
+  // Function interface implementation
+  auto execute(FunctionResponse& response) -> FunctionResponse override;
   
   // Configuration management
   auto getConfig() const -> const TextCleanConfig&;

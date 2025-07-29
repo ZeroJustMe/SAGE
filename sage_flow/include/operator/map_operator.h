@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include "base_operator.h"
+#include "function/map_function.h"
 
 namespace sage_flow {
 
@@ -13,11 +14,18 @@ class Response;
  * @brief Map operator for one-to-one transformations
  * 
  * Applies a transformation function to each input message and produces
- * exactly one output message.
+ * exactly one output message. Uses composition pattern with MapFunction.
  */
-class MapOperator : public Operator {
+class MapOperator final : public Operator {
  public:
   explicit MapOperator(std::string name);
+  
+  /**
+   * @brief Constructor with MapFunction
+   * @param name Operator name
+   * @param map_function MapFunction instance to handle processing logic
+   */
+  MapOperator(std::string name, std::unique_ptr<MapFunction> map_function);
 
   // Prevent copying
   MapOperator(const MapOperator&) = delete;
@@ -29,9 +37,20 @@ class MapOperator : public Operator {
   
   auto process(Response& input_record, int slot) -> bool override;
   
-  // Map-specific interface
-  virtual auto map(std::unique_ptr<MultiModalMessage> input) 
-      -> std::unique_ptr<MultiModalMessage> = 0;
+  /**
+   * @brief Set the map function
+   * @param map_function MapFunction instance to handle processing logic
+   */
+  void setMapFunction(std::unique_ptr<MapFunction> map_function);
+  
+  /**
+   * @brief Get the map function
+   * @return Reference to the contained MapFunction
+   */
+  auto getMapFunction() -> MapFunction&;
+
+ private:
+  std::unique_ptr<MapFunction> map_function_;
 };
 
 }  // namespace sage_flow

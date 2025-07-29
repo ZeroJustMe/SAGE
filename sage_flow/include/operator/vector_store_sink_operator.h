@@ -23,7 +23,7 @@ struct VectorStoreConfig {
  * This operator outputs messages to vector databases for embedding storage.
  * Follows the SAGE framework design patterns for sink operators.
  */
-class VectorStoreSinkOperator : public Operator {
+class VectorStoreSinkOperator final : public Operator {
  public:
   explicit VectorStoreSinkOperator(VectorStoreConfig config);
   ~VectorStoreSinkOperator() override = default;

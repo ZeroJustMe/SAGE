@@ -2,10 +2,16 @@
 #include "engine/stream_engine.h"
 #include "engine/execution_graph.h"
 #include "message/multimodal_message_core.h"
-#include "operator/lambda_operators.h"
-#include "operator/lambda_sinks.h"
+#include "operator/map_operator.h"
+#include "operator/filter_operator.h"
+#include "operator/sink_operator.h"
+#include "operator/source_operator.h"
+#include "function/map_function.h"
+#include "function/filter_function.h"
+#include "function/sink_function.h"
+#include "function/source_function.h"
 #include <stdexcept>
-#include <algorithm>
+#include <iostream>
 
 namespace sage_flow {
 
@@ -15,62 +21,177 @@ namespace sage_flow {
 
 DataStream::DataStream(std::shared_ptr<StreamEngine> engine,
                        std::shared_ptr<ExecutionGraph> graph,
-                       OperatorId last_operator_id)
+                       ExecutionGraph::OperatorId last_operator_id)
     : engine_(std::move(engine)), graph_(std::move(graph)), last_operator_id_(last_operator_id) {}
 
+// Lambda-based source operation (starting point for pipelines)
+auto DataStream::from_source(const std::function<std::unique_ptr<MultiModalMessage>()>& source_func) -> DataStream& {
+    // Create a concrete SourceFunction that wraps the lambda
+    class LambdaSourceFunction : public SourceFunction {
+    private:
+        std::function<std::unique_ptr<MultiModalMessage>()> source_func_;
+        bool has_next_ = true;
+        
+    public:
+        explicit LambdaSourceFunction(const std::string& name, 
+                                    std::function<std::unique_ptr<MultiModalMessage>()> func) 
+            : SourceFunction(name), source_func_(std::move(func)) {}
+            
+        void init() override {}
+        void close() override {}
+        
+        auto hasNext() -> bool override {
+            return has_next_;
+        }
+        
+        auto execute(FunctionResponse& response) -> FunctionResponse override {
+            FunctionResponse result;
+            auto message = source_func_();
+            if (message) {
+                result.addMessage(std::move(message));
+            } else {
+                has_next_ = false;
+            }
+            return result;
+        }
+    };
+    
+    // Create a concrete SourceOperator that uses the SourceFunction
+    class FunctionSourceOperator : public SourceOperator {
+    private:
+        std::unique_ptr<SourceFunction> source_function_;
+        
+    public:
+        explicit FunctionSourceOperator(std::string name, std::unique_ptr<SourceFunction> func)
+            : SourceOperator(std::move(name)), source_function_(std::move(func)) {}
+            
+        auto hasNext() -> bool override {
+            return source_function_->hasNext();
+        }
+        
+        auto next() -> std::unique_ptr<MultiModalMessage> override {
+            FunctionResponse response;
+            auto function_output = source_function_->execute(response);
+            if (!function_output.isEmpty()) {
+                auto& messages = function_output.getMessages();
+                return std::move(messages[0]);
+            }
+            return nullptr;
+        }
+        
+        auto reset() -> void override {
+            // Reset source to beginning if applicable
+        }
+    };
+    
+    auto source_function = std::make_unique<LambdaSourceFunction>("source_gen", source_func);
+    auto source_operator = std::make_unique<FunctionSourceOperator>("source_op", std::move(source_function));
+    
+    ExecutionGraph::OperatorId op_id = graph_->addOperator(std::shared_ptr<Operator>(source_operator.release()));
+    last_operator_id_ = op_id;
+    return *this;
+}
+
 // Lambda-based map operation (for simple transformations)
-auto DataStream::map(const std::function<std::unique_ptr<MultiModalMessage>(std::unique_ptr<MultiModalMessage>)>& func) -> DataStream {
-    auto lambda_op = std::make_unique<LambdaMapOperator>(func);
-    int op_id = graph_->addOperator(std::move(lambda_op));
+auto DataStream::map(const std::function<std::unique_ptr<MultiModalMessage>(std::unique_ptr<MultiModalMessage>)>& func) -> DataStream& {
+    // Adapt the user's function to the MapFunc signature (void(std::unique_ptr<MultiModalMessage>&))
+    MapFunc adapted_func = [func](std::unique_ptr<MultiModalMessage>& input) -> void {
+        // Apply the user's function and update the input in-place
+        auto result = func(std::move(input));
+        if (result) {
+            input = std::move(result);
+        }
+        // If result is null, input becomes null (effectively filtered out)
+    };
+    
+    // Create MapFunction with the adapted function
+    auto map_function = std::make_unique<MapFunction>("map_transform", adapted_func);
+    
+    // Create MapOperator with the MapFunction
+    auto map_operator = std::make_unique<MapOperator>("map_op", std::move(map_function));
+    
+    ExecutionGraph::OperatorId op_id = graph_->addOperator(std::shared_ptr<Operator>(map_operator.release()));
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
-    return std::move(*this);
+    return *this;
 }
 
 // Lambda-based filter operation (for simple predicates)
-auto DataStream::filter(const std::function<bool(const MultiModalMessage&)>& predicate) -> DataStream {
-    auto lambda_filter = std::make_unique<LambdaFilterOperator>(predicate);
-    int op_id = graph_->addOperator(std::move(lambda_filter));
+auto DataStream::filter(const std::function<bool(const MultiModalMessage&)>& predicate) -> DataStream& {
+    // Create FilterFunction with the predicate
+    auto filter_function = std::make_unique<FilterFunction>("filter_predicate", predicate);
+    
+    // Create FilterOperator with the FilterFunction
+    auto filter_operator = std::make_unique<FilterOperator>("filter_op", std::move(filter_function));
+    
+    ExecutionGraph::OperatorId op_id = graph_->addOperator(std::shared_ptr<Operator>(filter_operator.release()));
     connectToLastOperator(op_id);
     last_operator_id_ = op_id;
-    return std::move(*this);
+    return *this;
 }
 
 // Stream connection operation
 auto DataStream::connect(const DataStream& other) -> DataStream {
-    // Create a new graph that combines both streams
-    auto new_graph = engine_->createGraph();
-    
     // For now, implement simple merge - this would need more sophisticated logic
     // in a full implementation to handle proper stream joining
+    (void)other; // Suppress unused parameter warning
     throw std::runtime_error("Stream connection not yet fully implemented - requires join operator");
 }
 
 // Stream union operation
 auto DataStream::union_(const DataStream& other) -> DataStream {
     // Create a union operator that merges both streams
+    (void)other; // Suppress unused parameter warning
     throw std::runtime_error("Stream union not yet fully implemented - requires union operator");
 }
 
 // Lambda-based sink operation (for simple output)
 auto DataStream::sink(const std::function<void(const MultiModalMessage&)>& sink_func) -> void {
-    auto lambda_sink = std::make_unique<TerminalSinkOperator>(sink_func);
-    int sink_id = graph_->addOperator(std::move(lambda_sink));
+    // Create inline SinkFunction implementation
+    class LambdaSinkFunction : public SinkFunction {
+    public:
+        LambdaSinkFunction(std::string name, SinkFunc func) 
+            : SinkFunction(std::move(name), std::move(func)) {}
+        void init() override {} // No-op for lambda sink
+        void close() override {} // No-op for lambda sink
+    };
+    
+    auto sink_function = std::make_unique<LambdaSinkFunction>("sink_output", sink_func);
+    
+    // Create SinkOperator with the SinkFunction
+    auto sink_operator = std::make_unique<SinkOperator>("sink_op", std::move(sink_function));
+    
+    ExecutionGraph::OperatorId sink_id = graph_->addOperator(std::shared_ptr<Operator>(sink_operator.release()));
     connectToLastOperator(sink_id);
     finalizeGraph();
 }
 
 // Execution control methods
 auto DataStream::execute() -> void {
+    std::cout << "[DataStream] Starting execute()...\n";
+    std::cout << "[DataStream] is_finalized_: " << is_finalized_ << "\n";
+    std::cout << "[DataStream] graph_id_ has_value: " << graph_id_.has_value() << "\n";
+    if (graph_id_.has_value()) {
+        std::cout << "[DataStream] graph_id_ value: " << graph_id_.value() << "\n";
+    }
+    
     if (!is_finalized_) {
+        std::cout << "[DataStream] Calling finalizeGraph()...\n";
         finalizeGraph();
     }
     
-    if (graph_id_ == -1) {
+    std::cout << "[DataStream] After finalization, graph_id_ has_value: " << graph_id_.has_value() << "\n";
+    
+    if (!graph_id_.has_value()) {
+        std::cout << "[DataStream] Calling submitGraph()...\n";
         graph_id_ = engine_->submitGraph(graph_);
+        std::cout << "[DataStream] After submitGraph, graph_id_: " << graph_id_.value() << "\n";
+    } else {
+        std::cout << "[DataStream] Graph already submitted with ID: " << graph_id_.value() << "\n";
     }
     
-    engine_->executeGraph(graph_id_);
+    std::cout << "[DataStream] Calling executeGraph with ID: " << graph_id_.value() << "\n";
+    engine_->executeGraph(graph_id_.value());
 }
 
 auto DataStream::executeAsync() -> void {
@@ -78,16 +199,16 @@ auto DataStream::executeAsync() -> void {
         finalizeGraph();
     }
     
-    if (graph_id_ == -1) {
+    if (!graph_id_.has_value()) {
         graph_id_ = engine_->submitGraph(graph_);
     }
     
-    engine_->executeGraphAsync(graph_id_);
+    engine_->executeGraphAsync(graph_id_.value());
 }
 
 auto DataStream::stop() -> void {
-    if (graph_id_ != -1) {
-        engine_->stopGraph(graph_id_);
+    if (graph_id_.has_value()) {
+        engine_->stopGraph(graph_id_.value());
     }
 }
 
@@ -100,11 +221,11 @@ auto DataStream::isExecuting() const -> bool {
     return graph_->isRunning();
 }
 
-auto DataStream::getLastOperatorId() const -> int {
+auto DataStream::getLastOperatorId() const -> ExecutionGraph::OperatorId {
     return last_operator_id_;
 }
 
-auto DataStream::setLastOperatorId(int id) -> void {
+auto DataStream::setLastOperatorId(ExecutionGraph::OperatorId id) -> void {
     last_operator_id_ = id;
 }
 
@@ -117,8 +238,8 @@ auto DataStream::getEngine() const -> std::shared_ptr<StreamEngine> {
 }
 
 // Internal helper methods
-auto DataStream::connectToLastOperator(int new_operator_id) -> void {
-    if (last_operator_id_ != -1) {
+auto DataStream::connectToLastOperator(ExecutionGraph::OperatorId new_operator_id) -> void {
+    if (last_operator_id_ != static_cast<ExecutionGraph::OperatorId>(-1)) {
         graph_->connectOperators(last_operator_id_, new_operator_id);
     }
 }
@@ -136,192 +257,6 @@ auto DataStream::validateConfig(const std::unordered_map<std::string, std::any>&
     // Basic configuration validation
     // In a full implementation, this would validate operator-specific configuration
     return true;
-}
-
-// ===============================
-// SageFlowEnvironment Implementation
-// ===============================
-
-SageFlowEnvironment::SageFlowEnvironment(std::string name, 
-                                         StreamEngine::ExecutionMode mode)
-    : name_(std::move(name)), 
-      engine_(std::make_shared<StreamEngine>(mode)) {
-    engine_->start();
-}
-
-SageFlowEnvironment::~SageFlowEnvironment() {
-    close();
-}
-
-// Lambda-based source creation
-auto SageFlowEnvironment::fromGenerator(const std::function<std::unique_ptr<MultiModalMessage>()>& generator,
-                                        size_t max_messages) -> DataStream {
-    auto graph = engine_->createGraph();
-    
-    // Create lambda source operator
-    auto source = CreateLambdaSource(generator, max_messages);
-    int source_id = graph->addOperator(std::move(source));
-    
-    // Create DataStream with the source as starting point
-    DataStream result(engine_, graph, source_id);
-    active_streams_.push_back(std::move(result));
-    
-    return std::move(active_streams_.back());
-}
-
-// Environment configuration methods
-auto SageFlowEnvironment::setMemory(const std::unordered_map<std::string, std::string>& config) -> void {
-    memory_config_ = config;
-    setupMemoryIntegration();
-}
-
-auto SageFlowEnvironment::setThreadCount(int count) -> void {
-    engine_->setThreadCount(count);
-}
-
-auto SageFlowEnvironment::setExecutionMode(StreamEngine::ExecutionMode mode) -> void {
-    engine_->setExecutionMode(mode);
-}
-
-auto SageFlowEnvironment::setProperty(const std::string& key, const std::string& value) -> void {
-    properties_[key] = value;
-}
-
-auto SageFlowEnvironment::getProperty(const std::string& key) const -> std::string {
-    auto it = properties_.find(key);
-    return it != properties_.end() ? it->second : "";
-}
-
-// Environment control methods
-auto SageFlowEnvironment::submit() -> void {
-    if (is_submitted_) {
-        throw std::runtime_error("Environment already submitted");
-    }
-    
-    if (!validateStreams()) {
-        throw std::runtime_error("Invalid streams configuration");
-    }
-    
-    // Move active streams to submitted streams
-    submitted_streams_ = std::move(active_streams_);
-    active_streams_.clear();
-    
-    is_submitted_ = true;
-}
-
-auto SageFlowEnvironment::runStreaming() -> void {
-    if (!is_submitted_) {
-        submit();
-    }
-    
-    is_running_ = true;
-    
-    // Execute all submitted streams asynchronously
-    for (auto& stream : submitted_streams_) {
-        stream.executeAsync();
-    }
-}
-
-auto SageFlowEnvironment::runBatch() -> void {
-    if (!is_submitted_) {
-        submit();
-    }
-    
-    is_running_ = true;
-    
-    // Execute all submitted streams synchronously
-    for (auto& stream : submitted_streams_) {
-        stream.execute();
-    }
-    
-    is_running_ = false;
-}
-
-auto SageFlowEnvironment::stop() -> void {
-    if (!is_running_) {
-        return;
-    }
-    
-    // Stop all submitted streams
-    for (auto& stream : submitted_streams_) {
-        stream.stop();
-    }
-    
-    // Stop all active streams
-    for (auto& stream : active_streams_) {
-        stream.stop();
-    }
-    
-    engine_->stop();
-    is_running_ = false;
-}
-
-auto SageFlowEnvironment::close() -> void {
-    if (is_running_) {
-        stop();
-    }
-    
-    cleanupResources();
-    
-    active_streams_.clear();
-    submitted_streams_.clear();
-    memory_config_.clear();
-    properties_.clear();
-    is_submitted_ = false;
-}
-
-// Environment information methods
-auto SageFlowEnvironment::getName() const -> const std::string& {
-    return name_;
-}
-
-auto SageFlowEnvironment::isRunning() const -> bool {
-    return is_running_;
-}
-
-auto SageFlowEnvironment::getActiveStreamCount() const -> size_t {
-    return active_streams_.size();
-}
-
-auto SageFlowEnvironment::getSubmittedStreamCount() const -> size_t {
-    return submitted_streams_.size();
-}
-
-auto SageFlowEnvironment::getExecutionMode() const -> StreamEngine::ExecutionMode {
-    return engine_->getExecutionMode();
-}
-
-auto SageFlowEnvironment::getThreadCount() const -> int {
-    return engine_->getThreadCount();
-}
-
-auto SageFlowEnvironment::getEngine() const -> std::shared_ptr<StreamEngine> {
-    return engine_;
-}
-
-auto SageFlowEnvironment::addActiveStream(DataStream&& stream) -> void {
-    active_streams_.push_back(std::move(stream));
-}
-
-// Internal methods
-auto SageFlowEnvironment::validateStreams() -> bool {
-    // Validate all active streams have valid configurations
-    for (const auto& stream : active_streams_) {
-        if (stream.getOperatorCount() == 0) {
-            return false;
-        }
-    }
-    return true;
-}
-
-auto SageFlowEnvironment::setupMemoryIntegration() -> void {
-    // TODO: Integrate with sage_memory based on memory_config_
-    // This would set up vector store connections, index configurations, etc.
-}
-
-auto SageFlowEnvironment::cleanupResources() -> void {
-    // Cleanup any allocated resources
-    // Close file handles, network connections, etc.
 }
 
 }  // namespace sage_flow

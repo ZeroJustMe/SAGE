@@ -1,5 +1,5 @@
 #include "index/hnsw.h"
-
+#include <ranges>
 #include <algorithm>
 #include <cmath>
 #include <fstream>

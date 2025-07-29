@@ -18,14 +18,13 @@
 
 // Concrete index implementations
 #include "brute_force_index.h"
-#include "hnsw_index.h"
+#include "hnsw.h"
 // #include "ivf_index.h"  // Placeholder for future IVF index implementation
 // #include "vectra_flow_index.h"  // Placeholder for future VectraFlow index implementation
 
 // Index operators
 #include "index_operator.h"
 #include "knn_operator.h"
-#include "itopk_operator.h"
 
 namespace sage_flow {
 
@@ -44,12 +43,5 @@ auto CreateIndex(IndexType type,
  * @return Unique pointer to KNN operator
  */
 auto CreateKnnOperator(std::shared_ptr<MemoryPool> memory_pool) -> std::unique_ptr<KnnOperator>;
-
-/**
- * @brief Factory function to create Top-K operator
- * @param memory_pool Memory pool for allocation
- * @return Unique pointer to Top-K operator
- */
-auto CreateTopKOperator(std::shared_ptr<MemoryPool> memory_pool) -> std::unique_ptr<ITopKOperator>;
 
 }  // namespace sage_flow

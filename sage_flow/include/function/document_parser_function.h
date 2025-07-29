@@ -2,8 +2,8 @@
 
 #include <string>
 #include <unordered_map>
-
-#include "operator/operator.h"
+#include <memory>
+#include "function/function.h"
 
 namespace sage_flow {
 
@@ -12,8 +12,10 @@ namespace sage_flow {
  * 
  * Supports parsing of various document formats including PDF, Word, HTML,
  * and plain text. Extracts textual content and metadata for further processing.
+ * 
+ * Based on candyFlow design: Function handles data processing logic only.
  */
-class DocumentParserFunction final : public MapOperator {
+class DocumentParserFunction final : public Function {
  public:
   enum class DocumentFormat : std::uint8_t {
     kAuto,      // Auto-detect format
@@ -34,8 +36,12 @@ class DocumentParserFunction final : public MapOperator {
   explicit DocumentParserFunction(ParseConfig config);
   explicit DocumentParserFunction(std::string name, ParseConfig config);
   
-  auto map(std::unique_ptr<MultiModalMessage> input)
-      -> std::unique_ptr<MultiModalMessage> override;
+  /**
+   * @brief Execute document parsing function
+   * @param response Function response containing document data
+   * @return Processed response with parsed document content
+   */
+  auto execute(FunctionResponse& response) -> FunctionResponse override;
   
  private:
   ParseConfig config_;

@@ -1,14 +1,21 @@
 #include "environment/sage_flow_environment.h"
+#include "api/datastream.h"
+#include "engine/stream_engine.h"
+#include "engine/execution_graph.h"
 
 #include <iostream>
 
 namespace sage_flow {
 
 SageFlowEnvironment::SageFlowEnvironment(const std::string& job_name)
-    : config_(job_name), memory_pool_(CreateDefaultMemoryPool()) {}
+    : config_(job_name), memory_pool_(CreateDefaultMemoryPool()),
+      stream_engine_(std::make_shared<StreamEngine>()),
+      execution_graph_(std::make_shared<ExecutionGraph>()) {}
 
 SageFlowEnvironment::SageFlowEnvironment(EnvironmentConfig config)
-    : config_(std::move(config)), memory_pool_(CreateDefaultMemoryPool()) {}
+    : config_(std::move(config)), memory_pool_(CreateDefaultMemoryPool()),
+      stream_engine_(std::make_shared<StreamEngine>()),
+      execution_graph_(std::make_shared<ExecutionGraph>()) {}
 
 SageFlowEnvironment::~SageFlowEnvironment() {
   if (!is_closed_) {
@@ -67,6 +74,12 @@ void SageFlowEnvironment::run_batch() {
   // TODO(developer): Implement batch execution
   // Issue URL: https://github.com/intellistream/SAGE/issues/351
   std::cout << "[SAGE Flow] Starting batch execution for job '" << config_.job_name_ << "'\n";
+}
+
+auto SageFlowEnvironment::create_datastream() -> DataStream {
+  // Create a new execution graph for this datastream
+  auto graph = std::make_shared<ExecutionGraph>();
+  return {stream_engine_, graph, static_cast<ExecutionGraph::OperatorId>(-1)};
 }
 
 }  // namespace sage_flow

@@ -1,7 +1,9 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include "base_operator.h"
+#include "function/filter_function.h"
 
 namespace sage_flow {
 
@@ -12,11 +14,18 @@ class Response;
  * @brief Filter operator for selective data processing
  * 
  * Evaluates a predicate function on each input message and only passes
- * messages that satisfy the condition.
+ * messages that satisfy the condition. Uses composition pattern with FilterFunction.
  */
-class FilterOperator : public Operator {
+class FilterOperator final : public Operator {
  public:
   explicit FilterOperator(std::string name);
+  
+  /**
+   * @brief Constructor with FilterFunction
+   * @param name Operator name
+   * @param filter_function FilterFunction instance to handle processing logic
+   */
+  FilterOperator(std::string name, std::unique_ptr<FilterFunction> filter_function);
 
   // Prevent copying
   FilterOperator(const FilterOperator&) = delete;
@@ -28,8 +37,20 @@ class FilterOperator : public Operator {
   
   auto process(Response& input_record, int slot) -> bool override;
   
-  // Filter-specific interface
-  virtual auto filter(const MultiModalMessage& input) -> bool = 0;
+  /**
+   * @brief Set the filter function
+   * @param filter_function FilterFunction instance to handle processing logic
+   */
+  void setFilterFunction(std::unique_ptr<FilterFunction> filter_function);
+  
+  /**
+   * @brief Get the filter function
+   * @return Reference to the contained FilterFunction
+   */
+  auto getFilterFunction() -> FilterFunction&;
+
+ private:
+  std::unique_ptr<FilterFunction> filter_function_;
 };
 
 }  // namespace sage_flow

@@ -150,68 +150,9 @@ auto SourceOperator::runSource() -> void {
   }
 }
 
-// MapOperator implementation  
-MapOperator::MapOperator(std::string name)
-    : Operator(OperatorType::kMap, std::move(name)) {}
-
-auto MapOperator::process(Response& input_record, int slot) -> bool {
-  static_cast<void>(slot);  // Suppress unused parameter warning
-  
-  if (input_record.hasMessage()) {
-    auto input_message = input_record.getMessage();
-    if (input_message) {
-      auto output_message = map(std::move(input_message));
-      if (output_message) {
-        Response output_response(std::move(output_message));
-        emit(0, output_response);
-        incrementProcessedCount();
-        incrementOutputCount();
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-// FilterOperator implementation
-FilterOperator::FilterOperator(std::string name)
-    : Operator(OperatorType::kFilter, std::move(name)) {}
-
-auto FilterOperator::process(Response& input_record, int slot) -> bool {
-  static_cast<void>(slot);  // Suppress unused parameter warning
-  
-  if (input_record.hasMessage()) {
-    auto input_message = input_record.getMessage();
-    if (input_message) {
-      if (filter(*input_message)) {
-        Response output_response(std::move(input_message));
-        emit(0, output_response);
-        incrementOutputCount();
-      }
-      incrementProcessedCount();
-      return true;
-    }
-  }
-  return false;
-}
-
-// SinkOperator implementation
-SinkOperator::SinkOperator(std::string name)
-    : Operator(OperatorType::kSink, std::move(name)) {}
-
-auto SinkOperator::process(Response& input_record, int slot) -> bool {
-  static_cast<void>(slot);  // Suppress unused parameter warning
-  
-  if (input_record.hasMessage()) {
-    auto input_message = input_record.getMessage();
-    if (input_message) {
-      sink(std::move(input_message));
-      incrementProcessedCount();
-      return true;
-    }
-  }
-  return false;
-}
+// Note: MapOperator, FilterOperator, and SinkOperator implementations
+// have been moved to their own separate .cpp files with the new
+// composition-based architecture.
 
 // JoinOperator implementation
 JoinOperator::JoinOperator(std::string name)

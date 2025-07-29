@@ -24,6 +24,21 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     -Wshadow -Wconversion        # 额外警告
     -Wno-unused-parameter        # 允许未使用参数
   )
+  
+  # Sanitizers已禁用 - 可在需要时重新启用
+  # if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  #   message(STATUS "Adding sanitizers for debug build")
+  #   add_compile_options(
+  #     -fsanitize=address           # AddressSanitizer - 检测内存错误
+  #     -fsanitize=undefined         # UndefinedBehaviorSanitizer - 检测未定义行为
+  #     -fno-omit-frame-pointer      # 保留栈帧指针以获得更好的栈跟踪
+  #     -g                           # 调试信息
+  #   )
+  #   add_link_options(
+  #     -fsanitize=address
+  #     -fsanitize=undefined
+  #   )
+  # endif()
 endif()
 
 # clang-tidy集成
@@ -55,17 +70,23 @@ find_package(pybind11 REQUIRED)
 
 # 核心库源文件
 set(SAGE_FLOW_SOURCES
+  src/api/datastream.cpp
+  src/engine/stream_engine.cpp
+  src/engine/execution_graph.cpp
   src/message/vector_data.cpp
   src/message/retrieval_context.cpp
   src/message/multimodal_message_core.cpp
+  src/function/function.cpp
+  src/function/map_function.cpp
+  src/function/filter_function.cpp
+  src/function/sink_function.cpp
   src/operator/operator.cpp
-  src/operator/lambda_map_operator.cpp
-  src/operator/lambda_filter_operator.cpp
-  src/operator/lambda_source_operator.cpp
+  src/operator/map_operator.cpp
+  src/operator/filter_operator.cpp
+  src/operator/sink_operator.cpp
   src/operator/terminal_sink_operator.cpp
   src/operator/file_sink_operator.cpp
   src/operator/vector_store_sink_operator.cpp
-  src/function/text_processing.cpp
   src/index/index_operators.cpp
   src/index/brute_force_index.cpp
   src/index/hnsw.cpp
@@ -90,22 +111,12 @@ target_include_directories(sage_flow_core
 # C++17标准
 target_compile_features(sage_flow_core PUBLIC cxx_std_17)
 
-# pybind11绑定模块
-pybind11_add_module(sage_flow_py 
-  src/python/bindings.cpp
-)
-
-target_link_libraries(sage_flow_py PRIVATE sage_flow_core)
-
-# DataStream Python bindings
+# DataStream Python bindings - Main module
 pybind11_add_module(sage_flow_datastream
   src/python/datastream_bindings.cpp
-  src/python/lambda_map_operator_bindings.cpp
-  src/python/lambda_filter_operator_bindings.cpp
-  src/python/lambda_source_operator_bindings.cpp
-  src/python/terminal_sink_operator_bindings.cpp
-  src/python/file_sink_operator_bindings.cpp
-  src/python/vector_store_sink_operator_bindings.cpp
+  src/python/operators/terminal_sink_operator_bindings.cpp
+  src/python/operators/file_sink_operator_bindings.cpp
+  src/python/operators/vector_store_sink_operator_bindings.cpp
 )
 
 target_link_libraries(sage_flow_datastream PRIVATE sage_flow_core)

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <functional>
 
 #include "memory/memory_pool.h"
 
@@ -12,6 +13,10 @@ namespace sage_flow {
 class DataSource;
 class DataSink;
 class ProcessingFunction;
+class DataStream;
+class StreamEngine;
+class ExecutionGraph;
+class MultiModalMessage;
 
 /**
  * @brief Configuration for SAGE Flow environment
@@ -104,9 +109,28 @@ class SageFlowEnvironment {
    */
   void run_batch();
 
+  /**
+   * @brief Create a new DataStream for building processing pipelines
+   * 
+   * This method creates a DataStream instance that can be used to build
+   * processing pipelines using fluent interface, compatible with sage_core patterns.
+   * 
+   * Example usage:
+   *   env.create_datastream()
+   *      .from_source(source_func)
+   *      .map(processor_func)
+   *      .filter(filter_func)
+   *      .sink(sink_func);
+   * 
+   * @return DataStream instance for pipeline construction
+   */
+  auto create_datastream() -> DataStream;
+
  private:
   EnvironmentConfig config_;
   std::shared_ptr<MemoryPool> memory_pool_;
+  std::shared_ptr<StreamEngine> stream_engine_;
+  std::shared_ptr<ExecutionGraph> execution_graph_;
   bool is_closed_ = false;
 };
 

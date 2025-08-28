@@ -1,0 +1,379 @@
+{
+  "models": [
+    {
+      "name": "bge-small-zh-v1.5",
+      "display_name": "BGE Small Chinese v1.5",
+      "model_type": "local_hf",
+      "dimension": 512,
+      "max_tokens": 512,
+      "provider": "BAAI",
+      "model_path": "BAAI/bge-small-zh-v1.5",
+      "wrapper_class": "HuggingFaceWrapper",
+      "requires_api_key": false,
+      "config": {
+        "trust_remote_code": true
+      }
+    },
+    {
+      "name": "bge-m3",
+      "display_name": "BGE M3",
+      "model_type": "local_hf",
+      "dimension": 1024,
+      "max_tokens": 8192,
+      "provider": "BAAI",
+      "model_path": "BAAI/bge-m3",
+      "wrapper_class": "HuggingFaceWrapper",
+      "requires_api_key": false,
+      "config": {
+        "trust_remote_code": true
+      }
+    },
+    {
+      "name": "all-MiniLM-L6-v2",
+      "display_name": "All MiniLM L6 v2",
+      "model_type": "local_hf",
+      "dimension": 384,
+      "max_tokens": 256,
+      "provider": "sentence-transformers",
+      "model_path": "sentence-transformers/all-MiniLM-L6-v2",
+      "wrapper_class": "HuggingFaceWrapper",
+      "requires_api_key": false,
+      "config": {
+        "trust_remote_code": true
+      }
+    },
+    {
+      "name": "instructor-large",
+      "display_name": "Instructor Large",
+      "model_type": "local_instructor",
+      "dimension": 768,
+      "max_tokens": 512,
+      "provider": "hkunlp",
+      "model_path": "hkunlp/instructor-large",
+      "wrapper_class": "InstructorWrapper",
+      "requires_api_key": false,
+      "config": {
+        "trust_remote_code": true,
+        "device": "auto"
+      }
+    },
+    {
+      "name": "nomic-embed-text",
+      "display_name": "Nomic Embed Text",
+      "model_type": "local_ollama",
+      "dimension": 768,
+      "max_tokens": 2048,
+      "provider": "Ollama",
+      "model_path": "nomic-embed-text",
+      "wrapper_class": "OllamaWrapper",
+      "requires_api_key": false,
+      "config": {
+        "base_url": "http://localhost:11434",
+        "timeout": 60
+      }
+    },
+    {
+      "name": "text-embedding-ada-002",
+      "display_name": "OpenAI Ada 002",
+      "model_type": "api_openai",
+      "dimension": 1536,
+      "max_tokens": 8191,
+      "provider": "OpenAI",
+      "model_path": "text-embedding-ada-002",
+      "wrapper_class": "OpenAIWrapper",
+      "requires_api_key": true,
+      "config": {
+        "base_url": "https://api.openai.com/v1"
+      }
+    },
+    {
+      "name": "text-embedding-3-small",
+      "display_name": "OpenAI Embedding 3 Small",
+      "model_type": "api_openai",
+      "dimension": 1536,
+      "max_tokens": 8191,
+      "provider": "OpenAI",
+      "model_path": "text-embedding-3-small",
+      "wrapper_class": "OpenAIWrapper",
+      "requires_api_key": true,
+      "config": {
+        "base_url": "https://api.openai.com/v1"
+      }
+    },
+     {
+      "name": "text-embedding-3-large",
+      "display_name": "OpenAI Embedding 3 Large",
+      "model_type": "api_openai",
+      "dimension": 3072,
+      "max_tokens": 8191,
+      "provider": "OpenAI",
+      "model_path": "text-embedding-3-large",
+      "wrapper_class": "OpenAIWrapper",
+      "requires_api_key": true,
+      "config": {
+        "base_url": "https://api.openai.com/v1",
+        "timeout": 60,
+        "max_retries": 3,
+        "encoding_format": "float",
+        "supports_custom_dimensions": true,
+        "min_dimensions": 256,
+        "max_dimensions": 3072
+      }
+    },
+    {
+      "name": "nvidia-llama-3.2-nv-embedqa-1b-v1",
+      "display_name": "NVIDIA Llama 3.2 NV EmbedQA 1B v1",
+      "model_type": "api_nvidia",
+      "dimension": 4096,
+      "max_tokens": 2048,
+      "provider": "NVIDIA",
+      "model_path": "nvidia/llama-3.2-nv-embedqa-1b-v1",
+      "wrapper_class": "NvidiaOpenAIWrapper",
+      "requires_api_key": true,
+      "config": {
+        "base_url": "https://integrate.api.nvidia.com/v1",
+        "timeout": 60,
+        "max_retries": 3,
+        "encoding_format": "float",
+        "input_type": "passage",
+        "truncate": "NONE",
+        "supports_query_passage_distinction": true
+      }
+    },
+    {
+    "name": "jina-embeddings-v3",
+    "display_name": "Jina Embeddings v3",
+    "model_type": "api_jina",
+    "dimension": 1024,
+    "max_tokens": 8192,
+    "provider": "Jina AI",
+    "model_path": "jina-embeddings-v3",
+    "wrapper_class": "JinaWrapper",
+    "requires_api_key": true,
+    "config": {
+      "base_url": "https://api.jina.ai/v1/embeddings",
+      "timeout": 60,
+      "max_retries": 3,
+      "dimensions": 1024,
+      "late_chunking": false,
+      "normalized": true,
+      "embedding_type": "float",
+      "supports_custom_dimensions": true,
+      "supports_late_chunking": true,
+      "min_dimensions": 64,
+      "max_dimensions": 8192
+    }
+  },
+  {
+    "name": "jina-embeddings-v2-base-en",
+    "display_name": "Jina Embeddings v2 Base English",
+    "model_type": "api_jina",
+    "dimension": 768,
+    "max_tokens": 8192,
+    "provider": "Jina AI",
+    "model_path": "jina-embeddings-v2-base-en",
+    "wrapper_class": "JinaWrapper",
+    "requires_api_key": true,
+    "config": {
+      "base_url": "https://api.jina.ai/v1/embeddings",
+      "timeout": 60,
+      "max_retries": 3,
+      "dimensions": 768,
+      "late_chunking": false,
+      "normalized": true,
+      "embedding_type": "float",
+      "supports_custom_dimensions": false,
+      "supports_late_chunking": false
+    }
+  },
+  {
+    "name": "jina-embeddings-v2-small-en",
+    "display_name": "Jina Embeddings v2 Small English",
+    "model_type": "api_jina",
+    "dimension": 512,
+    "max_tokens": 512,
+    "provider": "Jina AI",
+    "model_path": "jina-embeddings-v2-small-en",
+    "wrapper_class": "JinaWrapper",
+    "requires_api_key": true,
+    "config": {
+      "base_url": "https://api.jina.ai/v1/embeddings",
+      "timeout": 60,
+      "max_retries": 3,
+      "dimensions": 512,
+      "late_chunking": false,
+      "normalized": true,
+      "embedding_type": "float",
+      "supports_custom_dimensions": false,
+      "supports_late_chunking": false
+    }
+  },
+    {
+      "name": "embed-english-v3.0",
+      "display_name": "Cohere English v3.0",
+      "model_type": "api_cohere",
+      "dimension": 1024,
+      "max_tokens": 512,
+      "provider": "Cohere",
+      "model_path": "embed-english-v3.0",
+      "wrapper_class": "CohereWrapper",
+      "requires_api_key": true,
+      "config": {
+        "input_type": "classification",
+        "embedding_types": ["float"]
+      }
+    },
+    {
+      "name": "embed-multilingual-v3.0",
+      "display_name": "Cohere Multilingual v3.0",
+      "model_type": "api_cohere",
+      "dimension": 1024,
+      "max_tokens": 512,
+      "provider": "Cohere",
+      "model_path": "embed-multilingual-v3.0",
+      "wrapper_class": "CohereWrapper",
+      "requires_api_key": true,
+      "config": {
+        "input_type": "classification",
+        "embedding_types": ["float"]
+      }
+    },
+    {
+      "name": "embedding-3",
+      "display_name": "ZhipuAI Embedding v3",
+      "model_type": "api_zhipuai",
+      "dimension": 2048,
+      "max_tokens": 8192,
+      "provider": "ZhipuAI",
+      "model_path": "embedding-3",
+      "wrapper_class": "ZhipuAIWrapper",
+      "requires_api_key": true,
+      "config": {
+        "encoding_format": "float"
+      }
+    },
+    {
+      "name": "bce-embedding-base_v1",
+      "display_name": "SiliconCloud BCE Embedding Base v1",
+      "model_type": "api_siliconcloud",
+      "dimension": 768,
+      "max_tokens": 512,
+      "provider": "SiliconCloud",
+      "model_path": "netease-youdao/bce-embedding-base_v1",
+      "wrapper_class": "SiliconCloudWrapper",
+      "requires_api_key": true,
+      "config": {
+        "base_url": "https://api.siliconflow.cn/v1/embeddings",
+        "max_token_size": 512,
+        "encoding_format": "base64"
+      }
+    },
+    {
+      "name": "lollms-embedding",
+      "display_name": "Lollms Local Embedding",
+      "model_type": "api_lollms",
+      "dimension": 768,
+      "max_tokens": 2048,
+      "provider": "Lollms",
+      "model_path": "default",
+      "wrapper_class": "LollmsWrapper",
+      "requires_api_key": false,
+      "config": {
+        "base_url": "http://localhost:9600",
+        "timeout": 30
+      }
+    },
+    {
+      "name": "amazon-titan-embed-text-v1",
+      "display_name": "Amazon Titan Embed Text v1",
+      "model_type": "api_bedrock",
+      "dimension": 1536,
+      "max_tokens": 8000,
+      "provider": "Amazon Bedrock",
+      "model_path": "amazon.titan-embed-text-v1:0",
+      "wrapper_class": "BedrockWrapper",
+      "requires_api_key": true,
+      "config": {
+        "region_name": "us-east-1",
+        "model_provider": "amazon"
+      }
+    },
+    {
+      "name": "amazon-titan-embed-text-v2",
+      "display_name": "Amazon Titan Embed Text v2",
+      "model_type": "api_bedrock",
+      "dimension": 1024,
+      "max_tokens": 8000,
+      "provider": "Amazon Bedrock",
+      "model_path": "amazon.titan-embed-text-v2:0",
+      "wrapper_class": "BedrockWrapper",
+      "requires_api_key": true,
+      "config": {
+        "region_name": "us-east-1",
+        "model_provider": "amazon"
+      }
+    },
+    {
+      "name": "cohere-embed-english-v3",
+      "display_name": "Cohere Embed English v3",
+      "model_type": "api_bedrock",
+      "dimension": 1024,
+      "max_tokens": 512,
+      "provider": "Amazon Bedrock",
+      "model_path": "cohere.embed-english-v3",
+      "wrapper_class": "BedrockWrapper",
+      "requires_api_key": true,
+      "config": {
+        "region_name": "us-east-1",
+        "model_provider": "cohere",
+        "input_type": "search_document",
+        "truncate": "NONE",
+        "supports_input_types": true,
+        "supported_input_types": ["search_document", "search_query", "classification", "clustering"]
+      }
+    },
+    {
+      "name": "cohere-embed-multilingual-v3",
+      "display_name": "Cohere Embed Multilingual v3",
+      "model_type": "api_bedrock",
+      "dimension": 1024,
+      "max_tokens": 512,
+      "provider": "Amazon Bedrock",
+      "model_path": "cohere.embed-multilingual-v3",
+      "wrapper_class": "BedrockWrapper",
+      "requires_api_key": true,
+      "config": {
+        "region_name": "us-east-1",
+        "model_provider": "cohere",
+        "input_type": "search_document",
+        "truncate": "NONE",
+        "supports_input_types": true,
+        "supported_input_types": ["search_document", "search_query", "classification", "clustering"]
+      }
+    },
+    {
+      "name": "mock-small",
+      "display_name": "Mock Small (384d)",
+      "model_type": "mock",
+      "dimension": 384,
+      "max_tokens": 512,
+      "provider": "Mock",
+      "model_path": "mock",
+      "wrapper_class": "MockWrapper",
+      "requires_api_key": false,
+      "config": {}
+    },
+    {
+      "name": "mock-large",
+      "display_name": "Mock Large (1536d)",
+      "model_type": "mock",
+      "dimension": 1536,
+      "max_tokens": 8191,
+      "provider": "Mock",
+      "model_path": "mock",
+      "wrapper_class": "MockWrapper",
+      "requires_api_key": false,
+      "config": {}
+    }
+  ]
+}
